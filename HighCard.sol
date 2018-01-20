@@ -5,35 +5,29 @@ contract HighCardGame {
     // Game Contract Settings
     address public __owner;
     uint public __balancesDailyPrize;
-    uint public __balancesGame;
 
     // Cost to play. Must send EXACT amount to be a valid play!
     uint constant __ethPerPlay = 0.01 ether;
 
-    // 5% Used as Reserve for Daily Prize Raffle
-    uint constant __ethDailyPrizeFee = (__ethPerPlay / 10) / 2;
-    // 2.5% Used as Reserve for Transfer Fee & Contract Owner Cut
-    uint constant __ethGameFee = __ethDailyPrizeFee / 2;
-    // 2.5% Used as Refund to report Loss to Player
-    uint public LOSSREWARD = __ethGameFee;
-    // 90% Sent to winner!
-    uint public WINREWARD = (__ethPerPlay * 2) - __ethDailyPrizeFee - __ethGameFee - LOSSREWARD;
-
 
     // Game Storage
-    address public playerMatch;
-    uint8 public playerMatchNumber;
+    struct PlayerWaiting {
+        address addr;
+        uint8 card;
+    }
+    PlayerWaiting playerWaiting;
 
     /*  Game Constructor
      *
-     *  A payable balance sent will be split between __balancesGame & __balancesDailyPrize
+     *  A payable balance sent will be split between __balancesDailyPrize & Game Reserve
      *  Useful if you want to start your Game Contract with reserve and prize
      */
     function HighCardGame() public payable {
-        playerMatch = address(0);
+        __owner = msg.sender;
+        playerWaiting = PlayerWaiting(address(0), 0);
+
         if (msg.value > 0) {
             __balancesDailyPrize = msg.value / 2;
-            __balancesGame = __balancesDailyPrize;
         }
     }
 
@@ -41,11 +35,20 @@ contract HighCardGame {
         // Exact ETH to play
         require(msg.value == __ethPerPlay);
         // Cannot be the previous player
-        require(msg.sender != playerMatch);
+        require(msg.sender != playerWaiting.addr);
 
-        // Match Players
-        // Ideally want to
-        _gameMatchPlay(msg.sender);
+        address winner;
+        address loser;
+        bool gameOver;
+
+        // Game Match
+        (winner, loser, gameOver) = _gameMatchPlay(msg.sender);
+
+        // Check Match
+        if (gameOver) {
+            // Send to Winner and Loser
+            _playerTransfer(winner, loser);
+        }
     }
 
     // Remix Helper (Can Delete)
@@ -58,37 +61,44 @@ contract HighCardGame {
         return uint8(uint(block.blockhash(block.number-1)) % _cap + 1);
     }
 
-    function _gameMatchPlay(address _player) private {
+    function _gameMatchPlay(address _player) private returns (address, address, bool) {
         // If Player Match Found = Play Game
-        if (playerMatch != address(0)) {
+        if (playerWaiting.addr != address(0)) {
             uint8 number = _setRandomNumber(13);
             address winner;
             address loser;
-            if (number > playerMatchNumber) {
+            if (number > playerWaiting.card) {
                 winner = _player;
-                loser = playerMatch;
+                loser = playerWaiting.addr;
             }
             else {
                 loser = _player;
-                winner = playerMatch;
+                winner = playerWaiting.addr;
             }
-            playerMatch = address(0);
-            playerMatchNumber = 0;
-            _playerTransfer(winner, loser);
+            playerWaiting = PlayerWaiting(address(0), 0);
+            return (winner, loser, true);
         }
         // If No Player Match = Wait For Next Player
         else {
-            playerMatch = _player;
-            playerMatchNumber = _setRandomNumber(13);
+            playerWaiting = PlayerWaiting(_player, _setRandomNumber(13));
+            return (address(0), address(0), false);
         }
     }
 
     // Transfer win/loss to players
     function _playerTransfer(address _winner, address _loser) private {
+        // 5% Used as Reserve for Daily Prize Raffle
+        uint ethDailyPrizeFee = (__ethPerPlay / 10) / 2;
+        // 2.5% Used as Contract Reserve for Gas Fees & Owner
+        uint ethGameReserveFee = ethDailyPrizeFee / 2;
+        // 2.5% Used as Refund to report Loss to Player
+        uint LOSSREWARD = ethGameReserveFee;
+        // 190% Sent to winner!
+        uint WINREWARD = (__ethPerPlay * 2) - ethDailyPrizeFee - ethGameReserveFee - LOSSREWARD;
+
         _winner.transfer(WINREWARD);
         _loser.transfer(LOSSREWARD);
-        __balancesDailyPrize += __ethDailyPrizeFee;
-        __balancesGame += __ethGameFee;
+        __balancesDailyPrize += ethDailyPrizeFee;
     }
 
     // ABORT!! End Contract
