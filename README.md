@@ -10,6 +10,7 @@ Ethereum contract backend for card game.
 
 - [x] Fix gas exceed error
 - [x] Remove random draw to `_gameMatchPlay` to prevent "check storage cheat"
+- [x] Improve random number generation
 - [ ] Fix tie draw logic. (Sudden death or refund)
 - [x] Possibly create and store game session archive (Potential array growth problem)
 - [ ] Create events for Web3
