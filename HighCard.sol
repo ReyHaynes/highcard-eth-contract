@@ -2,11 +2,9 @@ pragma solidity 0.4.19;
 
 
 contract HighCardGame {
+    // Game Contract Settings
     // Cost to play. Must send EXACT amount to be a valid play!
     uint public constant PLAYCOST = 0.01 ether;
-
-    // Game Contract Settings
-    uint8 private randomBlockReach = 1; // uint between 1 - 64
 
     // Game Storage
     address public owner;
@@ -43,13 +41,13 @@ contract HighCardGame {
 
         address winner;
         address loser;
-        bool gameOver;
+        bool gameMatch;
 
         // Game Match
-        (winner, loser, gameOver) = _gameMatchPlay(msg.sender);
+        (winner, loser, gameMatch) = _gameMatchPlay(msg.sender);
 
         // Check Match
-        if (gameOver) {
+        if (gameMatch == true) {
             // Send to Winner and Loser
             _playerTransfer(winner, loser);
             game++;
@@ -60,7 +58,7 @@ contract HighCardGame {
         uint8 p1;
         uint8 p2;
 
-        (p1, p2) = _setRandomNumbers(
+        (p1, p2) = _getRandomNumbers(
             1, 13,
             games[_game].p1, games[_game].p2,
             games[_game].time,
@@ -71,11 +69,6 @@ contract HighCardGame {
         return (p1, p2);
     }
 
-    // Remix Helper (Can Delete)
-    function getContractBalance() public view returns (uint) {
-        return this.balance;
-    }
-
     // ABORT!! End Contract
     function endContract() public {
         if (msg.sender == owner) {
@@ -83,7 +76,12 @@ contract HighCardGame {
         }
     }
 
-    function _setRandomNumbers(
+    function _getRandomNumber(uint _cap) private view returns (uint8) {
+        bytes32 seed = keccak256(block.blockhash(block.number-1), block.timestamp);
+        return uint8(uint(seed) % _cap + 1);
+    }
+
+    function _getRandomNumbers(
         uint _min, uint _max,
         address _p1, address _p2,
         uint _time, address _coinbase, uint _num, uint _reach
@@ -105,7 +103,7 @@ contract HighCardGame {
             uint timestamp = block.timestamp;
 
             // Set Cards
-            (p1num, p2num) = _setRandomNumbers(
+            (p1num, p2num) = _getRandomNumbers(
                 1, 13,
                 games[game].p1, _player,
                 timestamp,
@@ -131,7 +129,7 @@ contract HighCardGame {
             // If No Player Match = Start New Game
             games[game].p1 = _player;
             games[game].coinbase = block.coinbase;
-            games[game].reach = randomBlockReach;
+            games[game].reach = _getRandomNumber(64);
 
             return (0x0, 0x0, false);
         }
