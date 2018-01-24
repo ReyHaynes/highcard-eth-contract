@@ -1,41 +1,45 @@
-pragma solidity ^0.4.19;
+pragma solidity 0.4.19;
+
 
 contract HighCardGame {
+    // Cost to play. Must send EXACT amount to be a valid play!
+    uint public constant PLAYCOST = 0.01 ether;
 
     // Game Contract Settings
-    address public __owner;
-    uint public __balancesDailyPrize;
-
-    // Cost to play. Must send EXACT amount to be a valid play!
-    uint constant __ethPerPlay = 0.01 ether;
-
+    uint8 private randomBlockReach = 1; // uint between 1 - 64
 
     // Game Storage
-    struct PlayerWaiting {
-        address addr;
-        uint8 card;
+    address public owner;
+    uint public prizePool;
+    uint private game;
+    mapping (uint => GameData) public games;
+
+    struct GameData {
+        address p1;         // Set By P1
+        address p2;         // Set By P2
+        uint time;          // Set By P2
+        uint block;         // Set By P2
+        address coinbase;   // Set By P1
+        uint8 reach;        // Set By P1
     }
-    PlayerWaiting playerWaiting;
 
     /*  Game Constructor
      *
-     *  A payable balance sent will be split between __balancesDailyPrize & Game Reserve
+     *  A payable balance sent will be split between prizePool & Game Reserve
      *  Useful if you want to start your Game Contract with a reserve and prize
      */
     function HighCardGame() public payable {
-        __owner = msg.sender;
-        playerWaiting = PlayerWaiting(address(0), 0);
-
+        owner = msg.sender;
         if (msg.value > 0) {
-            __balancesDailyPrize = msg.value / 2;
+            prizePool = msg.value / 2;
         }
     }
 
     function play() public payable {
         // Exact ETH to play
-        require(msg.value == __ethPerPlay);
-        // Cannot be the previous player
-        require(msg.sender != playerWaiting.addr);
+        require(msg.value == PLAYCOST);
+        // Cannot play against self
+        require(msg.sender != games[game].p1);
 
         address winner;
         address loser;
@@ -48,7 +52,23 @@ contract HighCardGame {
         if (gameOver) {
             // Send to Winner and Loser
             _playerTransfer(winner, loser);
+            game++;
         }
+    }
+
+    function verifyGameDraw(uint _game) public view returns (uint8 player1, uint8 player2) {
+        uint8 p1;
+        uint8 p2;
+
+        (p1, p2) = _setRandomNumbers(
+            1, 13,
+            games[_game].p1, games[_game].p2,
+            games[_game].time,
+            games[_game].coinbase, games[_game].block,
+            games[_game].reach
+        );
+
+        return (p1, p2);
     }
 
     // Remix Helper (Can Delete)
@@ -56,56 +76,80 @@ contract HighCardGame {
         return this.balance;
     }
 
-    // Random Number Generator (Potential Problems)
-    function _setRandomNumber(uint _cap) private view returns (uint8) {
-        return uint8(uint(block.blockhash(block.number-1)) % _cap + 1);
+    // ABORT!! End Contract
+    function endContract() public {
+        if (msg.sender == owner) {
+            selfdestruct(owner);
+        }
+    }
+
+    function _setRandomNumbers(
+        uint _min, uint _max,
+        address _p1, address _p2,
+        uint _time, address _coinbase, uint _num, uint _reach
+    ) private view returns (uint8, uint8) {
+        require(_reach > 0 && _reach < 65);
+        uint seed1 = uint(keccak256(_p1, block.blockhash(_num-(_reach*1)), _num, _time)) % _max + _min;
+        uint seed2 = uint(keccak256(_p2, block.blockhash(_num-(_reach*4)), _coinbase, _time)) % _max + _min;
+
+        return (uint8(seed1), uint8(seed2));
     }
 
     function _gameMatchPlay(address _player) private returns (address, address, bool) {
         // If Player Match Found = Play Game
-        if (playerWaiting.addr != address(0)) {
-            uint8 number = _setRandomNumber(13);
+        if (games[game].p1 != 0x0) {
+            uint8 p1num;
+            uint8 p2num;
             address winner;
             address loser;
-            if (number > playerWaiting.card) {
+            uint timestamp = block.timestamp;
+
+            // Set Cards
+            (p1num, p2num) = _setRandomNumbers(
+                1, 13,
+                games[game].p1, _player,
+                timestamp,
+                games[game].coinbase, block.number,
+                games[game].reach
+            );
+
+            // Game Logic
+            if (p2num > p1num) {
                 winner = _player;
-                loser = playerWaiting.addr;
-            }
-            else {
+                loser = games[game].p1;
+            } else {
                 loser = _player;
-                winner = playerWaiting.addr;
+                winner = games[game].p1;
             }
-            playerWaiting = PlayerWaiting(address(0), 0);
+
+            games[game].p2 = _player;
+            games[game].time = timestamp;
+            games[game].block = block.number;
+
             return (winner, loser, true);
-        }
-        // If No Player Match = Wait For Next Player
-        else {
-            playerWaiting = PlayerWaiting(_player, _setRandomNumber(13));
-            return (address(0), address(0), false);
+        } else {
+            // If No Player Match = Start New Game
+            games[game].p1 = _player;
+            games[game].coinbase = block.coinbase;
+            games[game].reach = randomBlockReach;
+
+            return (0x0, 0x0, false);
         }
     }
 
     // Transfer win/loss to players
     function _playerTransfer(address _winner, address _loser) private {
         // 5% Used as Reserve for Daily Prize Raffle
-        uint ethDailyPrizeFee = (__ethPerPlay / 10) / 2;
+        uint ethDailyPrizeFee = (PLAYCOST / 10) / 2;
         // 2.5% Used as Contract Reserve for Gas Fees & Owner
         uint ethGameReserveFee = ethDailyPrizeFee / 2;
         // 2.5% Used as Refund to report Loss to Player
-        uint LOSSREWARD = ethGameReserveFee;
+        uint lossReward = ethGameReserveFee;
         // 190% Sent to winner!
-        uint WINREWARD = (__ethPerPlay * 2) - ethDailyPrizeFee - ethGameReserveFee - LOSSREWARD;
+        uint winReward = (PLAYCOST * 2) - ethDailyPrizeFee - ethGameReserveFee - lossReward;
 
-        _winner.transfer(WINREWARD);
-        _loser.transfer(LOSSREWARD);
-        __balancesDailyPrize += ethDailyPrizeFee;
+        _winner.transfer(winReward);
+        _loser.transfer(lossReward);
+        prizePool += ethDailyPrizeFee;
     }
-
-    // ABORT!! End Contract
-    function endContract() public {
-        if (msg.sender == __owner) {
-            selfdestruct(__owner);
-        }
-    }
-
 }
