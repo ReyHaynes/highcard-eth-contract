@@ -20,7 +20,7 @@ contract HighCardGame {
     /*  Game Constructor
      *
      *  A payable balance sent will be split between __balancesDailyPrize & Game Reserve
-     *  Useful if you want to start your Game Contract with reserve and prize
+     *  Useful if you want to start your Game Contract with a reserve and prize
      */
     function HighCardGame() public payable {
         __owner = msg.sender;
