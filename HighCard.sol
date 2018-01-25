@@ -77,7 +77,7 @@ contract HighCardGame {
     }
 
     function _getRandomNumber(uint _cap) private view returns (uint8) {
-        bytes32 seed = keccak256(block.blockhash(block.number-1), block.timestamp);
+        bytes32 seed = keccak256(block.blockhash(block.number-1), now);
         return uint8(uint(seed) % _cap + 1);
     }
 
@@ -100,7 +100,7 @@ contract HighCardGame {
             uint8 p2num;
             address winner;
             address loser;
-            uint timestamp = block.timestamp;
+            uint timestamp = now;
 
             // Set Cards
             (p1num, p2num) = _getRandomNumbers(
