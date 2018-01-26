@@ -18,6 +18,7 @@ Ethereum contract backend for card game.
 - [ ] Fix tie draw logic. (Sudden death or refund)
 - [ ] Add prizePool & pastWinners storage
 - [ ] Admin controls (endContract, gameCostChange, prizePool)
+- [ ] Separate logic, data, and core contract
 - [ ] Even out player gas cost
 - [ ] Optimize for reduce gas cost
 - [ ] Create UI for front-end
