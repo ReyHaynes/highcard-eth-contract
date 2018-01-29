@@ -19,10 +19,21 @@ class App extends Component {
 
   render() {
     return (
-      <div className="app">
+      <div className="app" style={styles.container}>
         { (this.state.web3) ? <MainScreen web3={this.web3}/> : <NoWeb3Screen/> }
       </div>
     )
+  }
+}
+
+const styles = {
+  container: {
+    height: '100vh',
+    padding: 0,
+    margin: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   }
 }
 

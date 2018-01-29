@@ -5,6 +5,14 @@ export default class MainScreen extends Component {
   constructor(props, context) {
     super(props, context)
 
+    this.state = {
+      styles: {
+        playButton: {
+          background: 'black'
+        }
+      }
+    }
+
     this.contract = new this.props.web3.eth.Contract(contract.abi, contract.address)
 
     this.playOnClick = this.playOnClick.bind(this)
@@ -14,7 +22,18 @@ export default class MainScreen extends Component {
     return (
       <div className="gameUI">
         <button
-          className="playGame"
+          className="playButton"
+          style={{...styles.playButton, ...this.state.styles.playButton}}
+          onMouseEnter={() => {
+              let style = this.state.styles
+              style.playButton.background = 'gray'
+              this.setState({ style })
+          }}
+          onMouseLeave={() => {
+            let style = this.state.styles
+            style.playButton.background = 'black'
+            this.setState({ style })
+          }}
           onClick={this.playOnClick}>
             Play
         </button>
@@ -45,5 +64,19 @@ export default class MainScreen extends Component {
     })
 
     console.log(transaction)
+  }
+}
+
+const styles = {
+  playButton: {
+    color: 'white',
+    padding: '15px 30px',
+    font: '1.15em arial, sans-serif',
+    WebkitFontSmoothing: 'antialiased',
+    fontSmoothing: 'antialiased',
+    textRendering: 'optimizeLegibility',
+    textTransform: 'uppercase',
+    border: 0,
+    cursor: 'pointer'
   }
 }
