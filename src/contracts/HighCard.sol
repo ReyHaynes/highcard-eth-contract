@@ -33,7 +33,7 @@ contract HighCardGame {
         }
     }
 
-    function play() public payable {
+    function play() public payable returns (uint gameID) {
         // Exact ETH to play
         require(msg.value == PLAYCOST);
         // Cannot play against self
@@ -42,6 +42,7 @@ contract HighCardGame {
         address winner;
         address loser;
         bool gameMatch;
+        uint id = game;
 
         // Game Match
         (winner, loser, gameMatch) = _gameMatchPlay(msg.sender);
@@ -52,6 +53,12 @@ contract HighCardGame {
             _playerTransfer(winner, loser);
             game++;
         }
+
+        return id;
+    }
+
+    function gamesPlayed() public view returns (uint) {
+        return game;
     }
 
     function verifyGameDraw(uint _game) public view returns (uint8 player1, uint8 player2) {
