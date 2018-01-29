@@ -6,9 +6,11 @@ export default class MainScreen extends Component {
     super(props, context)
 
     this.state = {
+      transactionInProgress: false,
       styles: {
         playButton: {
-          background: 'black'
+          background: 'black',
+          cursor: 'pointer'
         }
       }
     }
@@ -27,6 +29,7 @@ export default class MainScreen extends Component {
           onMouseEnter={() => {
               let style = this.state.styles
               style.playButton.background = 'gray'
+              style.playButton.cursor = (this.state.transactionInProgress) ? 'wait' : 'pointer'
               this.setState({ style })
           }}
           onMouseLeave={() => {
@@ -47,6 +50,8 @@ export default class MainScreen extends Component {
     let account = accounts[0]
     let play = this.contract.methods.play().encodeABI()
 
+    this.setState({ transactionInProgress: true })
+
     let transaction = await web3.eth.sendTransaction({
       from: account,
       to: contract.address,
@@ -55,6 +60,7 @@ export default class MainScreen extends Component {
       gas: 150000,
       data: play
     }, (err, txHash) => {
+      this.setState({ transactionInProgress: false })
       if (err) {
         console.log('Failed!')
         return false;
@@ -76,7 +82,6 @@ const styles = {
     fontSmoothing: 'antialiased',
     textRendering: 'optimizeLegibility',
     textTransform: 'uppercase',
-    border: 0,
-    cursor: 'pointer'
+    border: 0
   }
 }
